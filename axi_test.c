@@ -97,7 +97,7 @@ ADR +4 = Write / Read to GP1
 ADR +8 = Bit 0:27 myDebugCnt (GPU counter cycle)
          Bit 28 dbg_canWrite
          Bit 29 IRQ Read 
-         Bit 30 DMA_Req Read / nRST (Write)
+         Bit 30 DMA_Req Read / gpu_nrst (Write)
          Bit 31 DMA_Ack (Write)
 ADR +12= Read Data bus (cpuDataOut), without any other CPU signal.
          Write Data bus (cpuDataIn) + DMA_ACK = true.
@@ -113,11 +113,11 @@ ADR +12= Read Data bus (cpuDataOut), without any other CPU signal.
 	printf("myDebugCnt: 0x%08X\n", reg0&0x0FFFFFFF);
 	
 	// Read flags / myDebugCnt.
-	//reg0 = *((uint32_t *)h2p_rom2_addr+0x00000008);
-	//printf("myDebugCnt: 0x%08X\n", reg0&0x0FFFFFFF);
+	reg0 = *((uint32_t *)h2p_rom2_addr+0x00000008);
+	printf("myDebugCnt: 0x%08X\n", reg0&0x0FFFFFFF);
 	
 	//*((uint32_t *)h2p_rom2_addr+0x4) = 0xDEADBEEF; // Write to GP1.
-	//*((uint32_t *)h2p_rom2_addr+0x8) = 0x40000000; // Write to DMA_ACK / nRst. (keep nRst HIGH!)
+	//*((uint32_t *)h2p_rom2_addr+0x8) = 0x40000000; // Write to DMA_ACK / gpu_nrst. (keep gpu_nrst HIGH!)
 
 	// Read flags / myDebugCnt.
 	//reg0 = *((uint32_t *)h2p_rom2_addr+0x00000008);
