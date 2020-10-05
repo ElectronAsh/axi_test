@@ -16,6 +16,7 @@
 #include <linux/types.h>
 
 #include "sony_logo.h"
+#include "mem_card.h"
 
 //#include "../Main_MiSTerMSU/file_io.h"
 //#include "../Main_MiSTerMSU/user_io.h"
@@ -139,21 +140,17 @@ ADR +12= Read Data bus (cpuDataOut), without any other CPU signal.
 	usleep(20000);
 	
 	// Write to GP0...
-	/*
 	*((uint32_t *)axi_addr+0x000000000) = 0xE100020A;	// Texpage.
 	*((uint32_t *)axi_addr+0x000000000) = 0xE2000000;	// Texwindow.
 	*((uint32_t *)axi_addr+0x000000000) = 0xE3000000;	// DrawAreaX1Y1.
 	*((uint32_t *)axi_addr+0x000000000) = 0xE4077E7F;	// DrawAreaX2Y2.
 	*((uint32_t *)axi_addr+0x000000000) = 0xE5000000;	// DrawAreaOffset.
 	*((uint32_t *)axi_addr+0x000000000) = 0xE6000000;	// MaskBits.
-	*/
 	
 	// Write to GP0...
-	/*
 	*((uint32_t *)axi_addr+0x000000000) = 0x02FFFFFF; // Fill Rect WHITE
 	*((uint32_t *)axi_addr+0x000000000) = 0x00000000; // Start pos 0,0
 	*((uint32_t *)axi_addr+0x000000000) = 0x00100010; // Size 16x16 pixel.
-	*/
 
 	// Write to GP0...
 	/*
@@ -197,13 +194,17 @@ ADR +12= Read Data bus (cpuDataOut), without any other CPU signal.
 	*((uint32_t *)axi_addr+0x000000000) = 0x0166013D;
 	*/
 	
-	printf("sizeof: %d\n", sizeof(sony_logo) );
-
 	for (int i=0; i<sizeof(sony_logo)/4; i++) {
 		*((uint32_t *)axi_addr+0x000000000) = sony_logo[i];
 	}
+	usleep(500000);	// 500ms Wait for the rendering to finish! TODO - Do a proper polling check for this.
 	
-	usleep(100000);	// 100ms Wait for the rendering to finish! TODO - Do a proper polling check for this.
+	/*
+	for (int i=0; i<sizeof(mem_card)/4; i++) {
+		*((uint32_t *)axi_addr+0x000000000) = mem_card[i];
+	}
+	usleep(500000);	// 500ms Wait for the rendering to finish! TODO - Do a proper polling check for this.
+	*/
 	
 	/*
 	for (int i=0; i<256; i+=8) {			
