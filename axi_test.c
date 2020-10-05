@@ -15,6 +15,8 @@
 #include <errno.h>
 #include <linux/types.h>
 
+#include "sony_logo.h"
+
 //#include "../Main_MiSTerMSU/file_io.h"
 //#include "../Main_MiSTerMSU/user_io.h"
 //#include "../Main_MiSTerMSU/menu.h"
@@ -121,39 +123,62 @@ ADR +12= Read Data bus (cpuDataOut), without any other CPU signal.
          Write Data bus (cpuDataIn) + DMA_ACK = true.
 */
 
-	for (int i=0; i<256; i++) {
-		*((uint32_t *)fb_addr+i) = 0xCDCDCDCD;
+	// GPU Framebuffer size of 1024x512.
+	// So 524,288 pixels.
+	// 2 pixels per 32-bit word (16BPP), so clear 262,144 words.
+
+	// Clear the GPU framebuffer with a known value before starting each test.
+	for (int i=0; i<262144; i++) {
+		*((uint32_t *)fb_addr+i) = 0x11111111;
 	}
 	
 	printf("Resetting the GPU core...\n");
 	*((uint32_t *)axi_addr+0x000000002) = 0x00000000; // Write to DMA_ACK / gpu_nrst. Assert gpu_nrst (LOW).
-	sleep(1);
+	usleep(20000);
 	*((uint32_t *)axi_addr+0x000000002) = 0x40000000; // Write to DMA_ACK / gpu_nrst. Bring gpu_nrst HIGH again.
-	sleep(1);										  // Might need a slight delay before sending commands! ElectronAsh.
+	usleep(20000);
 	
-	
+	// Write to GP0...
 	/*
-	*((uint32_t *)axi_addr+0x000000000) = 0x02FFFFFF; // Fill Rect WHITE
-	*((uint32_t *)axi_addr+0x000000000) = 0x00000000; // Start pos 0,0
-	*((uint32_t *)axi_addr+0x000000000) = 0x00040010; // Size 16x4 pixel.	
-	sleep(1);
+	*((uint32_t *)axi_addr+0x000000000) = 0xE100020A;	// Texpage.
+	*((uint32_t *)axi_addr+0x000000000) = 0xE2000000;	// Texwindow.
+	*((uint32_t *)axi_addr+0x000000000) = 0xE3000000;	// DrawAreaX1Y1.
+	*((uint32_t *)axi_addr+0x000000000) = 0xE4077E7F;	// DrawAreaX2Y2.
+	*((uint32_t *)axi_addr+0x000000000) = 0xE5000000;	// DrawAreaOffset.
+	*((uint32_t *)axi_addr+0x000000000) = 0xE6000000;	// MaskBits.
 	*/
 	
 	// Write to GP0...
-	*((uint32_t *)axi_addr+0x000000000) = 0x02FFFFFF; // Fill Rect WHITE
-	*((uint32_t *)axi_addr+0x000000000) = 0x00000000; // Start pos 0,0
-	*((uint32_t *)axi_addr+0x000000000) = 0x00100010; // Size 16x16 pixel.
-	
-	//*((uint32_t *)axi_addr+0x000000000) = 0x02FFFFFF; // Fill Rect WHITE
-	//*((uint32_t *)axi_addr+0x000000000) = 0x00800080; // Start pos 128,128, probably?
-	//*((uint32_t *)axi_addr+0x000000000) = 0x00100010; // Size 16x16 pixel.
-	
 	/*
 	*((uint32_t *)axi_addr+0x000000000) = 0x02FFFFFF; // Fill Rect WHITE
 	*((uint32_t *)axi_addr+0x000000000) = 0x00000000; // Start pos 0,0
-	*((uint32_t *)axi_addr+0x000000000) = 0x00040010; // Size 16x4 pixel.	
+	*((uint32_t *)axi_addr+0x000000000) = 0x00100010; // Size 16x16 pixel.
+	*/
+
+	// Write to GP0...
+	/*
+	// (orange diamond, from the BIOS Logo.)
+	*((uint32_t *)axi_addr+0x000000000) = 0x380000B2;	// Color1+Command.  Shaded four-point polygon, opaque.
+	*((uint32_t *)axi_addr+0x000000000) = 0x00F000C0;	// Vertex 1.
+	*((uint32_t *)axi_addr+0x000000000) = 0x00008CB2;	// Color2.
+	*((uint32_t *)axi_addr+0x000000000) = 0x00700140;	// Vertex 2.
+	*((uint32_t *)axi_addr+0x000000000) = 0x00008CB2;	// Color3.
+	*((uint32_t *)axi_addr+0x000000000) = 0x01700140;	// Vertex 3.
+	*((uint32_t *)axi_addr+0x000000000) = 0x000000B2;	// Color4.
+	*((uint32_t *)axi_addr+0x000000000) = 0x00F001C0;	// Vertex4.
 	*/
 	
+	//
+	// Crash Bandicoot's right ear.
+	/*
+	*((uint32_t *)axi_addr+0x000000000) = 0x30000828;	// Color1+Command.  Shaded three-point polygon, opaque.
+	*((uint32_t *)axi_addr+0x000000000) = 0x001E0019;	// Vertex 1.
+	*((uint32_t *)axi_addr+0x000000000) = 0x60000B3A;	// Color2.
+	*((uint32_t *)axi_addr+0x000000000) = 0x001F0028;	// Vertex 2.
+	*((uint32_t *)axi_addr+0x000000000) = 0x60000B39;	// Color3.
+	*((uint32_t *)axi_addr+0x000000000) = 0x00030001;	// Vertex 3.
+	*/
+
 	/*
 	*((uint32_t *)axi_addr+0x000000000) = 0x300000FF;	// TriangleGouraud.
 	*((uint32_t *)axi_addr+0x000000000) = 0x00000000;
@@ -172,33 +197,15 @@ ADR +12= Read Data bus (cpuDataOut), without any other CPU signal.
 	*((uint32_t *)axi_addr+0x000000000) = 0x0166013D;
 	*/
 	
-	/*
-	*((uint32_t *)axi_addr+0x000000000) = 0x380000B2;	// QuadGouraud, from the BIOS Logo.
-	*((uint32_t *)axi_addr+0x000000000) = 0x00F000C0;
-	*((uint32_t *)axi_addr+0x000000000) = 0x00008CB2;
-	*((uint32_t *)axi_addr+0x000000000) = 0x00700140;
-	*((uint32_t *)axi_addr+0x000000000) = 0x00008CB2;
-	*((uint32_t *)axi_addr+0x000000000) = 0x01700140;
-	*((uint32_t *)axi_addr+0x000000000) = 0x000000B2;
-	*((uint32_t *)axi_addr+0x000000000) = 0x00F001C0;
-	*/
-	
-	sleep(1);
-	
-	/*
-	for (int i=0; i<256; i+=8) {			
-		reg0 = *((uint32_t *)fb_addr+i+0);
-		reg1 = *((uint32_t *)fb_addr+i+1);
-		reg2 = *((uint32_t *)fb_addr+i+2);
-		reg3 = *((uint32_t *)fb_addr+i+3);
-		reg4 = *((uint32_t *)fb_addr+i+4);
-		reg5 = *((uint32_t *)fb_addr+i+5);
-		reg6 = *((uint32_t *)fb_addr+i+6);
-		reg7 = *((uint32_t *)fb_addr+i+7);
-		printf("%08X %08X %08X %08X %08X %08X %08X %08X\n", reg0, reg1, reg2, reg3, reg4, reg5, reg6, reg7);
-	}
-	*/
+	printf("sizeof: %d\n", sizeof(sony_logo) );
 
+	for (int i=0; i<sizeof(sony_logo)/4; i++) {
+		*((uint32_t *)axi_addr+0x000000000) = sony_logo[i];
+	}
+	
+	usleep(100000);	// 100ms Wait for the rendering to finish! TODO - Do a proper polling check for this.
+	
+	/*
 	for (int i=0; i<256; i+=8) {			
 		reg0 = *((uint32_t *)fb_addr+i+0);	// TESTING!! Skipping every odd 32-bit WORD atm,
 		reg1 = *((uint32_t *)fb_addr+i+2);	// as DDRAM is set up as 64-bit wide on the FPGA side, but we're only writing 32 bits. ElectronAsh.
@@ -210,7 +217,18 @@ ADR +12= Read Data bus (cpuDataOut), without any other CPU signal.
 		reg7 = *((uint32_t *)fb_addr+i+14);
 		printf("%08X %08X %08X %08X %08X %08X %08X %08X\n", reg0, reg1, reg2, reg3, reg4, reg5, reg6, reg7);
 	}
-
+	*/
+	printf("\n");
+	
+	uint32_t offset = 0x0;
+	printf("Displaying FB offset: 0x%08X...\n", offset);
+	
+	for (int i=0; i<128; i++) {
+		if ( (i&7)==0 ) printf("\n");
+		reg0 = *((uint32_t *)fb_addr+offset+i); printf("%08X ", reg0);
+	}
+	printf("\n");
+	
 	
 	// Read flags / myDebugCnt.
 	reg0 = *((uint32_t *)axi_addr+0x000000002);
