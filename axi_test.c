@@ -130,7 +130,7 @@ ADR +12= Read Data bus (cpuDataOut), without any other CPU signal.
 
 	// Clear the GPU framebuffer with a known value before starting each test.
 	for (int i=0; i<262144; i++) {
-		*((uint32_t *)fb_addr+i) = 0x11111111;
+		*((uint32_t *)fb_addr+i) = 0x001F001F;
 	}
 	
 	printf("Resetting the GPU core...\n");
@@ -148,13 +148,29 @@ ADR +12= Read Data bus (cpuDataOut), without any other CPU signal.
 	*((uint32_t *)axi_addr+0x000000000) = 0xE6000000;	// MaskBits.
 	
 	// Write to GP0...
+	/*
 	*((uint32_t *)axi_addr+0x000000000) = 0x02FFFFFF; // Fill Rect WHITE
 	*((uint32_t *)axi_addr+0x000000000) = 0x00000000; // Start pos 0,0
 	*((uint32_t *)axi_addr+0x000000000) = 0x00100010; // Size 16x16 pixel.
-
-	// Write to GP0...
+	*/
+	
 	/*
+	*((uint32_t *)axi_addr+0x000000000) = 0x02FFFFFF; // Fill Rect WHITE
+	*((uint32_t *)axi_addr+0x000000000) = 0x00400040; // Start pos 64,64
+	*((uint32_t *)axi_addr+0x000000000) = 0x00400040; // Size 64x64 pixel.
+	*/
+	
+	/*
+	*((uint32_t *)axi_addr+0x000000000) = 0x02FFFFFF; // Fill Rect WHITE
+	*((uint32_t *)axi_addr+0x000000000) = 0x00000000; // Start pos 0,0
+	*((uint32_t *)axi_addr+0x000000000) = 0x01ff03ff; // Size 511x1023 pixel.
+	*/
+	
+	usleep(500000);	// 500ms Wait for the rendering to finish! TODO - Do a proper polling check for this.
+	
+	// Write to GP0...
 	// (orange diamond, from the BIOS Logo.)
+	/*
 	*((uint32_t *)axi_addr+0x000000000) = 0x380000B2;	// Color1+Command.  Shaded four-point polygon, opaque.
 	*((uint32_t *)axi_addr+0x000000000) = 0x00F000C0;	// Vertex 1.
 	*((uint32_t *)axi_addr+0x000000000) = 0x00008CB2;	// Color2.
@@ -169,13 +185,29 @@ ADR +12= Read Data bus (cpuDataOut), without any other CPU signal.
 	// Crash Bandicoot's right ear.
 	/*
 	*((uint32_t *)axi_addr+0x000000000) = 0x30000828;	// Color1+Command.  Shaded three-point polygon, opaque.
-	*((uint32_t *)axi_addr+0x000000000) = 0x001E0019;	// Vertex 1.
-	*((uint32_t *)axi_addr+0x000000000) = 0x60000B3A;	// Color2.
-	*((uint32_t *)axi_addr+0x000000000) = 0x001F0028;	// Vertex 2.
-	*((uint32_t *)axi_addr+0x000000000) = 0x60000B39;	// Color3.
-	*((uint32_t *)axi_addr+0x000000000) = 0x00030001;	// Vertex 3.
+	*((uint32_t *)axi_addr+0x000000000) = 0x001E0019;	// Vertex 1. (YyyyXxxxh)  Y=30. X=25
+	*((uint32_t *)axi_addr+0x000000000) = 0x6000003A;	// Color2.   (00BbGgRrh)  
+	*((uint32_t *)axi_addr+0x000000000) = 0x001F0028;	// Vertex 2. (YyyyXxxxh)  Y=31. X=40
+	*((uint32_t *)axi_addr+0x000000000) = 0x60000039;	// Color3.   (00BbGgRrh)  
+	*((uint32_t *)axi_addr+0x000000000) = 0x00030001;	// Vertex 3. (YyyyXxxxh)  Y=3. X=1
 	*/
-
+	
+	*((uint32_t *)axi_addr+0x000000000) = 0x30FF0000;	// Color1+Command.  Shaded three-point polygon, opaque.
+	*((uint32_t *)axi_addr+0x000000000) = 0x00000000;	// Vertex 1. (YyyyXxxxh)  Y=30. X=25
+	*((uint32_t *)axi_addr+0x000000000) = 0x0000FF00;	// Color2.   (00BbGgRrh)  
+	*((uint32_t *)axi_addr+0x000000000) = 0x0000000F;	// Vertex 2. (YyyyXxxxh)  Y=31. X=40
+	*((uint32_t *)axi_addr+0x000000000) = 0x000000FF;	// Color3.   (00BbGgRrh)  
+	*((uint32_t *)axi_addr+0x000000000) = 0x000F000F;	// Vertex 3. (YyyyXxxxh)  Y=3. X=1
+	
+	/*
+	*((uint32_t *)axi_addr+0x000000000) = 0x30000828;	// Color1+Command.  Shaded three-point polygon, opaque.
+	*((uint32_t *)axi_addr+0x000000000) = 0x001E0019;	// Vertex 1. (YyyyXxxxh)  Y=30. X=25
+	*((uint32_t *)axi_addr+0x000000000) = 0x60000B3A;	// Color2.   (00BbGgRrh)  
+	*((uint32_t *)axi_addr+0x000000000) = 0x00280040;	// Vertex 2. (YyyyXxxxh)  Y=40. X=64
+	*((uint32_t *)axi_addr+0x000000000) = 0x60000B39;	// Color3.   (00BbGgRrh)  
+	*((uint32_t *)axi_addr+0x000000000) = 0x00400032;	// Vertex 3. (YyyyXxxxh)  Y=64. X=50
+	*/
+	
 	/*
 	*((uint32_t *)axi_addr+0x000000000) = 0x300000FF;	// TriangleGouraud.
 	*((uint32_t *)axi_addr+0x000000000) = 0x00000000;
@@ -193,11 +225,13 @@ ADR +12= Read Data bus (cpuDataOut), without any other CPU signal.
 	*((uint32_t *)axi_addr+0x000000000) = 0x00008CB2;
 	*((uint32_t *)axi_addr+0x000000000) = 0x0166013D;
 	*/
-	
+
+	/*
 	for (int i=0; i<sizeof(sony_logo)/4; i++) {
 		*((uint32_t *)axi_addr+0x000000000) = sony_logo[i];
 	}
 	usleep(500000);	// 500ms Wait for the rendering to finish! TODO - Do a proper polling check for this.
+	*/
 	
 	/*
 	for (int i=0; i<sizeof(mem_card)/4; i++) {
