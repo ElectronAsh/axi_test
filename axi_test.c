@@ -85,6 +85,7 @@ public:
 	
 	void executeInLoop() {
 		if (canPush() && diff) {
+		//if (1 && diff) {
 			writeGP0(buffer[readIdx++]);
 			if (readIdx >= MAX_SIZE) { readIdx = 0; }
 			diff--;
@@ -185,7 +186,7 @@ ADR +12= Read Data bus (cpuDataOut), without any other CPU signal.
 
 	// Clear the GPU framebuffer with a known value before starting each test.
 	for (int i=0; i<262144; i++) {
-		*((uint32_t *)fb_addr+i) = 0x04000400;
+		*((uint32_t *)fb_addr+i) = 0x42104210; // Grey.
 	}
 	
 	printf("Resetting the GPU core...\n");
@@ -198,14 +199,14 @@ ADR +12= Read Data bus (cpuDataOut), without any other CPU signal.
 	
 	mgr.StartGPUReset(); // First thing to do in the morning, brush your teeth.
 	mgr.EndGPUReset();   // Toilet, then breakfast.
+	//usleep(10000);		// 10ms delay, just to be sure. Probably don't need this?
 
+	/*
 	mgr.writeCommand(0x02FFFFFF);	// GP0(02h) FillVram / Colour.
 	mgr.writeCommand(0x00000000);
 	mgr.writeCommand(0x00040010);	// xpos.bit0-3=0Fh=bugged  xpos.bit0-3=ignored.
 	for (int i=0; i<3; i++) mgr.executeInLoop();
-	
-	uint32_t performance = mgr.getGPUCycle();
-	printf("mydebugCnt: %d\n", performance);
+	*/
 
 	// Write to GP0...
 	/*
@@ -295,6 +296,7 @@ ADR +12= Read Data bus (cpuDataOut), without any other CPU signal.
 	for (int i=0; i<3; i++) mgr.executeInLoop();
 	*/
 	
+	/*
 	mgr.writeCommand(0x020000FF); // Fill Rect RED.
 	mgr.writeCommand(0x00000000); // Start pos 0,0
 	mgr.writeCommand(0x00400040); // Size 64x64 pixel.
@@ -309,8 +311,9 @@ ADR +12= Read Data bus (cpuDataOut), without any other CPU signal.
 	mgr.writeCommand(0x00800080); // Start pos 128,128
 	mgr.writeCommand(0x00400040); // Size 64x64 pixel.
 	for (int i=0; i<3; i++) mgr.executeInLoop();
+	*/
 	
-	usleep(500000);	// 500ms Wait for the rendering to finish! TODO - Do a proper polling check for this.
+	//usleep(500000);	// 500ms Wait for the rendering to finish! TODO - Do a proper polling check for this.
 	
 	// Write to GP0...
 	// (orange diamond, from the BIOS Logo.)
@@ -327,8 +330,8 @@ ADR +12= Read Data bus (cpuDataOut), without any other CPU signal.
 	*/
 	
 	//
-	// Crash Bandicoot's right ear.
 	/*
+	// Crash Bandicoot's right ear.
 	mgr.writeCommand(0x30000828);	// Color1+Command.  Shaded three-point polygon, opaque.
 	mgr.writeCommand(0x001E0019);	// Vertex 1. (YyyyXxxxh)  Y=30. X=25
 	mgr.writeCommand(0x60000B3A);	// Color2.   (00BbGgRrh)  
@@ -378,14 +381,11 @@ ADR +12= Read Data bus (cpuDataOut), without any other CPU signal.
 	for (int i=0; i<6; i++) mgr.executeInLoop();
 	*/
 	
-	/*
-	for (int i=0; i<sizeof(sony_logo)/4; i++) {
+	for (int i=0; i<sizeof(sony_logo)/4; i++) {		// sizeof gives bytes, but logo is in uint32_t.
 		mgr.writeCommand(sony_logo[i]);
 		mgr.executeInLoop();
-		
 	}
 	usleep(500000);	// 500ms Wait for the rendering to finish! TODO - Do a proper polling check for this.
-	*/
 	
 	/*
 	for (int i=0; i<sizeof(mem_card)/4; i++) {
@@ -394,7 +394,7 @@ ADR +12= Read Data bus (cpuDataOut), without any other CPU signal.
 	}
 	usleep(500000);	// 500ms Wait for the rendering to finish! TODO - Do a proper polling check for this.
 	*/
-	
+
 	/*
 	for (int i=0; i<256; i+=8) {			
 		reg0 = *((uint32_t *)fb_addr+i+0);	// TESTING!! Skipping every odd 32-bit WORD atm,
@@ -409,6 +409,13 @@ ADR +12= Read Data bus (cpuDataOut), without any other CPU signal.
 	}
 	*/
 	printf("\n");
+	
+		
+	uint32_t performance = mgr.getGPUCycle();
+	printf("mydebugCnt: %d\n", performance);
+
+	
+	usleep(500000);	// 500ms Wait for the rendering to finish! TODO - Do a proper polling check for this.
 	
 	uint32_t offset = 0x0;
 	printf("Displaying FB offset: 0x%08X...\n", offset);
