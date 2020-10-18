@@ -19,6 +19,8 @@
 #include "sony_logo.h"
 #include "comp_ent.h"
 
+char psxBuffer[2 * 1024 * 1024];
+
 //#include "../Main_MiSTerMSU/file_io.h"
 //#include "../Main_MiSTerMSU/user_io.h"
 //#include "../Main_MiSTerMSU/menu.h"
@@ -68,12 +70,15 @@ void writeRaw(uint32_t data) {
 	BASE_GPU[0] = data;
 }
 
+typedef unsigned short u16;
+typedef unsigned int   u32;
+
 class GPUManager {
 public:
-	GPUManager(uint32_t* gpuBase):BASE_GPU(gpuBase),diff(0),writeIdx(0),readIdx(0) {}
+	GPUManager(u32* gpuBase):BASE_GPU(gpuBase),diff(0),writeIdx(0),readIdx(0) {}
 	
-	bool canPush      () { return (BASE_GPU[2] & 1<<28);    }		// Read dbg_canWrite flag.
-	uint32_t  getGPUCycle  () { return BASE_GPU[2] & 0x0FFFFFFF; }	// Read myDebugCnt.
+	bool canPush      () { return (BASE_GPU[2] & 1<<28);    }
+	u32  getGPUCycle  () { return BASE_GPU[2] & 0x0FFFFFFF; }
 
 	void StartGPUReset() { BASE_GPU[2] = 0<<30;                 }
 	void EndGPUReset  () { BASE_GPU[2] = 1<<30;                 }
@@ -82,7 +87,7 @@ public:
 		return (diff < MAX_SIZE-2);
 	}
 	
-	void writeCommand (uint32_t v) {
+	void writeCommand (u32 v) {
 		// User must check to know, but I check here to avoid memory overwrite.
 		if (canWriteCommand()) {
 			diff++;
@@ -93,24 +98,31 @@ public:
 	
 	void executeInLoop() {
 		if (canPush() && diff) {
-		//if (1 && diff) {
 			writeGP0(buffer[readIdx++]);
 			if (readIdx >= MAX_SIZE) { readIdx = 0; }
 			diff--;
 		}
 	}
+
+	void waitUntilWrite(u32 data) {
+		while (!canWriteCommand()) { 
+			executeInLoop();
+		}
+		writeCommand(data);
+		executeInLoop();
+	}
 	
 private:
-	static const uint32_t MAX_SIZE = 4096;
+	static const u32 MAX_SIZE = 4096;
 	
-	void writeGP0(uint32_t value) { BASE_GPU[0] = value; }
-	void writeGP1(uint32_t value) { BASE_GPU[1] = value; }
+	void writeGP0(u32 value) { BASE_GPU[0] = value; }
+	void writeGP1(u32 value) { BASE_GPU[1] = value; }
 
-	uint32_t* BASE_GPU;
-	uint32_t diff;
-	uint32_t readIdx;
-	uint32_t writeIdx;
-	uint32_t buffer[MAX_SIZE];
+	u32* BASE_GPU;
+	u32 diff;
+	u32 readIdx;
+	u32 writeIdx;
+	u32 buffer[MAX_SIZE];
 };
 
 
@@ -167,6 +179,65 @@ int mmap_setup() {
 	return 0;
 }
 
+void parser(const char* fileName, u16* psxBuffer, GPUManager& mgr, uint32_t delay) {
+	FILE* binSrc = fopen(fileName,"rb");
+
+	// ---------------------------------------------------------------------------------
+	// Method 1 ----- Read file directly into DDR VRAM of the PSX ?
+	// Load dump from VRAM in memory.
+	// With this method, stencil cache is not updated correctly on real HW.
+	
+    u16* buff16 = (u16*)psxBuffer;
+    for (int y=0; y < 524288; y++) {
+        fread(&buff16[y],sizeof(u16),1,binSrc);
+        if ((y & 0x3FF) == 0) { printf("Y:%i\n", y >> 10); }
+        //usleep(1);
+    }
+	
+	//u16* buff16 = (u16*)psxBuffer;
+	//fread(psxBuffer,sizeof(u16),1024*512,binSrc);
+
+	/* In the SIM I update directly the chip stencil with this code
+	// ----- Sync Stencil cache and VRAM state.
+	for (int y=0; y < 512; y++) {
+		for (int x=0; x < 1024; x++) {
+			bool bBit    = (buff16[x + (y*1024)] & 0x8000) ? true : false;
+			setStencil(mod,x,y,bBit);
+		}
+	}
+	*/
+	
+	printf("cmdSetup:");
+
+	// ---------------------------------------------------------------------------------
+	// Method 2 ---- Create a REAL UPLOAD COMMAND
+	// ---- Setup
+	u32 setupCommandCount;
+	fread(&setupCommandCount, sizeof(u32), 1, binSrc);
+	for (int n=0; n < setupCommandCount; n++) {
+		u32 cmdSetup;
+		fread(&cmdSetup, sizeof(u32),1, binSrc);
+		printf("cmdSetup: 0x%08X  ", cmdSetup);
+		writeRaw(cmdSetup);
+		if (delay>0) usleep(delay);
+	}
+
+	u32 logCommandCount;
+	fread(&logCommandCount, sizeof(u32), 1, binSrc);
+	for (int n=0; n < logCommandCount; n++) {
+		u32 cmdLength;
+		fread(&cmdLength, sizeof(u32),1, binSrc);
+		for (int m=0; m < cmdLength; m++) {
+			u32 operand;
+			fread(&operand, sizeof(u32),1, binSrc);
+			printf("operand: 0x%08X\n", operand);
+			writeRaw(operand);
+			if (delay>0) usleep(delay);
+		}
+	}
+	
+	fclose(binSrc);
+}
 
 int main()
 {
@@ -318,14 +389,15 @@ ADR +12= Read Data bus (cpuDataOut), without any other CPU signal.
 	*/
 
 	// Write to GP0...
-	/*
 	writeRaw(0xE100020A);	// Texpage.
 	writeRaw(0xE2000000);	// Texwindow.
 	writeRaw(0xE3000000);	// DrawAreaX1Y1.
 	writeRaw(0xE4077E7F);	// DrawAreaX2Y2.
 	writeRaw(0xE5000000);	// DrawAreaOffset.
 	writeRaw(0xE6000000);	// MaskBits.
-	*/
+	
+	//parser( "/media/fat/DumpSet2/Megaman Scr3", (u16*)fb_addr, mgr, 0);
+	parser( "/media/fat/DumpSet3/RidgeRacerGame", (u16*)fb_addr, mgr, 1);
 
 	// Test poly RGB.
 	/*
@@ -520,12 +592,14 @@ ADR +12= Read Data bus (cpuDataOut), without any other CPU signal.
 	writeRaw(0x0166013D);
 	*/
 	
+	/*
 	writeRaw(0xE100020A);	// Texpage.
 	writeRaw(0xE2000000);	// Texwindow.
 	writeRaw(0xE3000000);	// DrawAreaX1Y1.
 	writeRaw(0xE4077E7F);	// DrawAreaX2Y2.
 	writeRaw(0xE5000000);	// DrawAreaOffset.
 	writeRaw(0xE6000000);	// MaskBits.
+	*/
 	
 	/*
 	writeRaw(0x28B4B4B4);	// Quad, for clearing background to grey.
@@ -535,7 +609,7 @@ ADR +12= Read Data bus (cpuDataOut), without any other CPU signal.
 	writeRaw(0x01E00280);
 	*/
 	
-
+	/*
 	writeRaw(0x01000000);	// Flush texture cache.
 	printf("sizeof sony logo: %d BYTES / %d WORDS\n", sizeof(sony_logo), sizeof(sony_logo)/4 );
 	for (int i=0; i<sizeof(sony_logo)/4; i++) {		// sizeof gives bytes, but logo is in uint32_t.
@@ -631,21 +705,27 @@ ADR +12= Read Data bus (cpuDataOut), without any other CPU signal.
 	writeRaw(0x5EB324A0);
 	writeRaw(0x6B385A92);
 	writeRaw(0x000049EC);
+	*/
 	
-	writeRaw(0x32FF0000);    // Color1+Command.  Shaded three-point polygon, opaque.
-	writeRaw(0x00000000);    // Vertex 1. (YyyyXxxxh)  Y=0. X=0
+	/*
+	writeRaw(0x32FF0000);    // Color1+Command.  Shaded three-point polygon, semi-transparent.
+	//writeRaw(0x30FF0000);    // Color1+Command.  Shaded three-point polygon, opaque.
+	writeRaw(0x00000000);    // Vertex 1. (YyyyXxxxh)
 	writeRaw(0x0000FF00);    // Color2.   (00BbGgRrh)  
-	writeRaw(0x0000009F);    // Vertex 2. (YyyyXxxxh)  Y=0. X=64
+	writeRaw(0x0000009F);    // Vertex 2. (YyyyXxxxh)
 	writeRaw(0x000000FF);    // Color3.   (00BbGgRrh)  
-	writeRaw(0x007F0020);    // Vertex 3. (YyyyXxxxh)  Y=64. X=64
+	writeRaw(0x007F0020);    // Vertex 3. (YyyyXxxxh)
+	*/
+
 	
+	/*
 	usleep(5000);
-		
+	
 	writeRaw(0x65000000); // Color+Command. GP0(65h) - Textured Rectangle, variable size, opaque, raw-texture
 	writeRaw(0x003800C8); // Vertex. Upper-left coord of the rectangle.
 	writeRaw(0x780C0000); // Texcoord+Palette
 	writeRaw(0x00400040); // (variable size only) (max 1023x511)
-
+	*/
 		
 		
 	/*
@@ -720,8 +800,8 @@ ADR +12= Read Data bus (cpuDataOut), without any other CPU signal.
 	printf("\n");
 	*/
 	
-	printf("printing lines 0-7...\n");
-	for (int line=0; line<8; line++) {
+	printf("printing lines 0-31...\n");
+	for (int line=0; line<32; line++) {
 		for (int word=0; word<8; word++) { reg0 = *((uint32_t *)fb_addr+word+(line*512) ); printf("%08X ", reg0); }	// 32-bit word address for fb_addr, 2 pixels per word, so 1024/2.
 		printf("\n");
 	}
