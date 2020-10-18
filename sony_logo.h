@@ -1,6 +1,6 @@
 const uint32_t sony_logo [] = {
 	0xA0000000,
-	0x00000280,
+	0x00000340,		// 0x00000280 for the 1st Sony texture. 0x00000340 for the 2nd Sony texture.
 	0x0030003C,
 	0x00000000,
 	0x00000000,
