@@ -40,7 +40,7 @@
 #define BRIDGE_0_SPAN 0xFFFFF
 #define BRIDGE_0_END  0xFFFFF
 
-#define HW_FPGA_FB_BASE (0x10000000)
+#define HW_FPGA_FB_OFST (0x10000000)
 #define HW_FPGA_FB_SPAN (0x00400000) 		// Bridge span 4MB
 #define HW_FPGA_FB_MASK ( HW_FPGA_FB_SPAN - 1 )
 
@@ -64,7 +64,7 @@ ADR +12= Read Data bus (cpuDataOut), without any other CPU signal.
 void writeRaw(uint32_t data) {
 	uint32_t* BASE_GPU = (uint32_t *)axi_addr;
 	
-	while ( !(BASE_GPU[2] & 1<<28) );	// Wait for dbg_canWrite flag before sending data.
+	while ( !(BASE_GPU[2] & 1<<28) );	// Wait for dbg_canWrite flag (High) before sending data. If LOW, then stay in while loop. TODO: Add timeout?
 	BASE_GPU[0] = data;
 }
 
@@ -148,7 +148,7 @@ int mmap_setup() {
 	printf("axi_addr: 0x%08X\n\n", (unsigned int)axi_addr );
 	
 	
-	fb_virtual_base = mmap( NULL, HW_FPGA_FB_MASK, ( PROT_READ | PROT_WRITE ), MAP_SHARED, fd, HW_FPGA_FB_BASE );
+	fb_virtual_base = mmap( NULL, HW_FPGA_FB_SPAN, ( PROT_READ | PROT_WRITE ), MAP_SHARED, fd, HW_FPGA_FB_OFST );
 	printf("Mapping the HPS-to_FPGA bridge for Framebuffer...\n");
 	if ( fb_virtual_base == MAP_FAILED ) {
 		printf( "ERROR: fb mmap() failed...\n\n" );
@@ -312,115 +312,104 @@ ADR +12= Read Data bus (cpuDataOut), without any other CPU signal.
 	*/
 	
 	/*
-	mgr.writeCommand(0x02FFFFFF);	// GP0(02h) FillVram / Colour.
-	mgr.writeCommand(0x00000000);
-	mgr.writeCommand(0x00040010);	// xpos.bit0-3=0Fh=bugged  xpos.bit0-3=ignored.
-	for (int i=0; i<3; i++) mgr.executeInLoop();
+	writeRaw(0x02FFFFFF);	// GP0(02h) FillVram / Colour.
+	writeRaw(0x00000000);
+	writeRaw(0x00040010);	// xpos.bit0-3=0Fh=bugged  xpos.bit0-3=ignored.
 	*/
 
 	// Write to GP0...
 	/*
-	mgr.writeCommand(0xE100020A);	// Texpage.
-	mgr.writeCommand(0xE2000000);	// Texwindow.
-	mgr.writeCommand(0xE3000000);	// DrawAreaX1Y1.
-	mgr.writeCommand(0xE4077E7F);	// DrawAreaX2Y2.
-	mgr.writeCommand(0xE5000000);	// DrawAreaOffset.
-	mgr.writeCommand(0xE6000000);	// MaskBits.
-	for (int i=0; i<6; i++) mgr.executeInLoop();
+	writeRaw(0xE100020A);	// Texpage.
+	writeRaw(0xE2000000);	// Texwindow.
+	writeRaw(0xE3000000);	// DrawAreaX1Y1.
+	writeRaw(0xE4077E7F);	// DrawAreaX2Y2.
+	writeRaw(0xE5000000);	// DrawAreaOffset.
+	writeRaw(0xE6000000);	// MaskBits.
 	*/
 
 	// Test poly RGB.
 	/*
-	mgr.writeCommand(0x30FF0000);	// (CcBbGgRrh)  Color1+Command.  (blue) Shaded three-point poly. 
-	mgr.writeCommand(0x00000000);	// (YyyyXxxxh)  Vertex 1.  Y=0. X=0
-	mgr.writeCommand(0x0000FF00);	// (00BbGgRrh)  Color2. (green)
-	mgr.writeCommand(0x0000000F);	// (YyyyXxxxh)  Vertex 2.  Y=0. X=15
-	mgr.writeCommand(0x000000FF);	// (00BbGgRrh)  Color3. (red)
-	mgr.writeCommand(0x000F000F);	// (YyyyXxxxh)  Vertex 3.  Y=15. X=15
-	for (int i=0; i<6; i++) mgr.executeInLoop();
+	writeRaw(0x30FF0000);	// (CcBbGgRrh)  Color1+Command.  (blue) Shaded three-point poly. 
+	writeRaw(0x00000000);	// (YyyyXxxxh)  Vertex 1.  Y=0. X=0
+	writeRaw(0x0000FF00);	// (00BbGgRrh)  Color2. (green)
+	writeRaw(0x0000000F);	// (YyyyXxxxh)  Vertex 2.  Y=0. X=15
+	writeRaw(0x000000FF);	// (00BbGgRrh)  Color3. (red)
+	writeRaw(0x000F000F);	// (YyyyXxxxh)  Vertex 3.  Y=15. X=15
 	*/
 	
 	// Test poly white.
 	/*
-	mgr.writeCommand(0x30FFFFFF);	// (CcBbGgRrh)  Color1+Command.  (blue) Shaded three-point poly. 
-	mgr.writeCommand(0x00000000);	// (YyyyXxxxh)  Vertex 1.  Y=0. X=0
-	mgr.writeCommand(0x00FFFFFF);	// (00BbGgRrh)  Color2. (green)
-	mgr.writeCommand(0x0000000F);	// (YyyyXxxxh)  Vertex 2.  Y=0. X=15
-	mgr.writeCommand(0x00FFFFFF);	// (00BbGgRrh)  Color3. (red)
-	mgr.writeCommand(0x000F000F);	// (YyyyXxxxh)  Vertex 3.  Y=15. X=15
-	for (int i=0; i<6; i++) mgr.executeInLoop();
+	writeRaw(0x30FFFFFF);	// (CcBbGgRrh)  Color1+Command.  (blue) Shaded three-point poly. 
+	writeRaw(0x00000000);	// (YyyyXxxxh)  Vertex 1.  Y=0. X=0
+	writeRaw(0x00FFFFFF);	// (00BbGgRrh)  Color2. (green)
+	writeRaw(0x0000000F);	// (YyyyXxxxh)  Vertex 2.  Y=0. X=15
+	writeRaw(0x00FFFFFF);	// (00BbGgRrh)  Color3. (red)
+	writeRaw(0x000F000F);	// (YyyyXxxxh)  Vertex 3.  Y=15. X=15
 	*/
 	
 	// Test poly red.
 	/*
-    mgr.writeCommand(0x300000FF);    // (CcBbGgRrh)  Color1+Command. Shaded three-point poly. 
-    mgr.writeCommand(0x00000000);    // (YyyyXxxxh)  Vertex 1.  Y=0. X=0
-    mgr.writeCommand(0x000000FF);    // (00BbGgRrh)  Color2.
-    mgr.writeCommand(0x0000000F);    // (YyyyXxxxh)  Vertex 2.  Y=0. X=15
-    mgr.writeCommand(0x000000FF);    // (00BbGgRrh)  Color3.
-    mgr.writeCommand(0x000F000F);    // (YyyyXxxxh)  Vertex 3.  Y=15. X=15
-	for (int i=0; i<6; i++) mgr.executeInLoop();
+    writeRaw(0x300000FF);    // (CcBbGgRrh)  Color1+Command. Shaded three-point poly. 
+    writeRaw(0x00000000);    // (YyyyXxxxh)  Vertex 1.  Y=0. X=0
+    writeRaw(0x000000FF);    // (00BbGgRrh)  Color2.
+    writeRaw(0x0000000F);    // (YyyyXxxxh)  Vertex 2.  Y=0. X=15
+    writeRaw(0x000000FF);    // (00BbGgRrh)  Color3.
+    writeRaw(0x000F000F);    // (YyyyXxxxh)  Vertex 3.  Y=15. X=15
 	*/
 	
 	// Test poly green.
 	/*
-	mgr.writeCommand(0x3000FF00);	// (CcBbGgRrh)  Color1+Command. Shaded three-point poly. 
-	mgr.writeCommand(0x00000000);	// (YyyyXxxxh)  Vertex 1.  Y=0. X=0
-	mgr.writeCommand(0x0000FF00);	// (00BbGgRrh)  Color2.
-	mgr.writeCommand(0x0000000F);	// (YyyyXxxxh)  Vertex 2.  Y=0. X=15
-	mgr.writeCommand(0x0000FF00);	// (00BbGgRrh)  Color3.
-	mgr.writeCommand(0x000F000F);	// (YyyyXxxxh)  Vertex 3.  Y=15. X=15
-	for (int i=0; i<6; i++) mgr.executeInLoop();
+	writeRaw(0x3000FF00);	// (CcBbGgRrh)  Color1+Command. Shaded three-point poly. 
+	writeRaw(0x00000000);	// (YyyyXxxxh)  Vertex 1.  Y=0. X=0
+	writeRaw(0x0000FF00);	// (00BbGgRrh)  Color2.
+	writeRaw(0x0000000F);	// (YyyyXxxxh)  Vertex 2.  Y=0. X=15
+	writeRaw(0x0000FF00);	// (00BbGgRrh)  Color3.
+	writeRaw(0x000F000F);	// (YyyyXxxxh)  Vertex 3.  Y=15. X=15
 	*/
 	
 	// Test poly blue.
 	/*
-	mgr.writeCommand(0x30FF0000);	// (CcBbGgRrh)  Color1+Command. Shaded three-point poly. 
-	mgr.writeCommand(0x00000000);	// (YyyyXxxxh)  Vertex 1.  Y=0. X=0
-	mgr.writeCommand(0x00FF0000);	// (00BbGgRrh)  Color2.
-	mgr.writeCommand(0x0000000F);	// (YyyyXxxxh)  Vertex 2.  Y=0. X=15
-	mgr.writeCommand(0x00FF0000);	// (00BbGgRrh)  Color3.
-	mgr.writeCommand(0x000F000F);	// (YyyyXxxxh)  Vertex 3.  Y=15. X=15
-	for (int i=0; i<6; i++) mgr.executeInLoop();
+	writeRaw(0x30FF0000);	// (CcBbGgRrh)  Color1+Command. Shaded three-point poly. 
+	writeRaw(0x00000000);	// (YyyyXxxxh)  Vertex 1.  Y=0. X=0
+	writeRaw(0x00FF0000);	// (00BbGgRrh)  Color2.
+	writeRaw(0x0000000F);	// (YyyyXxxxh)  Vertex 2.  Y=0. X=15
+	writeRaw(0x00FF0000);	// (00BbGgRrh)  Color3.
+	writeRaw(0x000F000F);	// (YyyyXxxxh)  Vertex 3.  Y=15. X=15
 	*/
+
 	
 	// Write to GP0...
 	/*
-	mgr.writeCommand(0x02FFFFFF); // Fill Rect WHITE
-	mgr.writeCommand(0x00000000); // Start pos 0,0
-	mgr.writeCommand(0x00100010); // Size 16x16 pixel.
-	for (int i=0; i<3; i++) mgr.executeInLoop();
+	writeRaw(0x02FFFFFF); // Fill Rect WHITE
+	writeRaw(0x00000000); // Start pos 0,0
+	writeRaw(0x00000280); // Size 16x16 pixel.
 	*/
 	
 	/*
-	mgr.writeCommand(0x02FFFFFF); // Fill Rect WHITE
-	mgr.writeCommand(0x00400040); // Start pos 64,64
-	mgr.writeCommand(0x00400040); // Size 64x64 pixel.
-	for (int i=0; i<3; i++) mgr.executeInLoop();
+	writeRaw(0x02FFFFFF); // Fill Rect WHITE
+	writeRaw(0x00400040); // Start pos 64,64
+	writeRaw(0x00400040); // Size 64x64 pixel.
 	*/
 	
 	/*
-	mgr.writeCommand(0x02FFFFFF); // Fill Rect WHITE
-	mgr.writeCommand(0x00000000); // Start pos 0,0
-	mgr.writeCommand(0x01ff03ff); // Size 511x1023 pixel.
-	for (int i=0; i<3; i++) mgr.executeInLoop();
+	writeRaw(0x02FFFFFF); // Fill Rect WHITE
+	writeRaw(0x00000000); // Start pos 0,0
+	writeRaw(0x01ff03ff); // Size 511x1023 pixel.
 	*/
-	
+
+
 	/*
-	mgr.writeCommand(0x020000FF); // Fill Rect RED.
-	mgr.writeCommand(0x00000000); // Start pos 0,0
-	mgr.writeCommand(0x00400040); // Size 64x64 pixel.
-	for (int i=0; i<3; i++) mgr.executeInLoop();
+	writeRaw(0x020000FF); // Fill Rect RED.
+	writeRaw(0x00000000); // Start pos 0,0
+	writeRaw(0x00400040); // Size 64x64 pixel.
 	
-	mgr.writeCommand(0x0200FF00); // Fill Rect GREEN
-	mgr.writeCommand(0x00400040); // Start pos 64,64
-	mgr.writeCommand(0x00400040); // Size 64x64 pixel.
-	for (int i=0; i<3; i++) mgr.executeInLoop();
+	writeRaw(0x0200FF00); // Fill Rect GREEN
+	writeRaw(0x00400040); // Start pos 64,64
+	writeRaw(0x00400040); // Size 64x64 pixel.
 	
-	mgr.writeCommand(0x02FF0000); // Fill Rect BLUE.
-	mgr.writeCommand(0x00800080); // Start pos 128,128
-	mgr.writeCommand(0x00400040); // Size 64x64 pixel.
-	for (int i=0; i<3; i++) mgr.executeInLoop();
+	writeRaw(0x02FF0000); // Fill Rect BLUE.
+	writeRaw(0x00800080); // Start pos 128,128
+	writeRaw(0x00400040); // Size 64x64 pixel.
 	*/
 	
 	//usleep(500000);	// 500ms Wait for the rendering to finish! TODO - Do a proper polling check for this.
@@ -441,91 +430,85 @@ ADR +12= Read Data bus (cpuDataOut), without any other CPU signal.
 	//
 	// Crash Bandicoot's right ear.
 	/*
-	mgr.writeCommand(0x30000828);	// Color1+Command.  Shaded three-point polygon, opaque.
-	mgr.writeCommand(0x001E0019);	// Vertex 1. (YyyyXxxxh)  Y=30. X=25
-	mgr.writeCommand(0x60000B3A);	// Color2.   (00BbGgRrh)  
-	mgr.writeCommand(0x001F0028);	// Vertex 2. (YyyyXxxxh)  Y=31. X=40
-	mgr.writeCommand(0x60000B39);	// Color3.   (00BbGgRrh)  
-	mgr.writeCommand(0x00030001);	// Vertex 3. (YyyyXxxxh)  Y=3. X=1
-	for (int i=0; i<6; i++) mgr.executeInLoop();
+	writeRaw(0x30000828);	// Color1+Command.  Shaded three-point polygon, opaque.
+	writeRaw(0x001E0019);	// Vertex 1. (YyyyXxxxh)  Y=30. X=25
+	writeRaw(0x60000B3A);	// Color2.   (00BbGgRrh)  
+	writeRaw(0x001F0028);	// Vertex 2. (YyyyXxxxh)  Y=31. X=40
+	writeRaw(0x60000B39);	// Color3.   (00BbGgRrh)  
+	writeRaw(0x00030001);	// Vertex 3. (YyyyXxxxh)  Y=3. X=1
 	*/
 
 	/*
-	mgr.writeCommand(0x30800000);	// Color1+Command.  Shaded three-point polygon, opaque.
-	mgr.writeCommand(0x00000000);	// Vertex 1. (YyyyXxxxh)  Y=30. X=25
-	mgr.writeCommand(0x00008000);	// Color2.   (00BbGgRrh)  
-	mgr.writeCommand(0x0000000F);	// Vertex 2. (YyyyXxxxh)  Y=31. X=40
-	mgr.writeCommand(0x00000080);	// Color3.   (00BbGgRrh)  
-	mgr.writeCommand(0x000F000F);	// Vertex 3. (YyyyXxxxh)  Y=3. X=1
-	for (int i=0; i<6; i++) mgr.executeInLoop();
+	writeRaw(0x30800000);	// Color1+Command.  Shaded three-point polygon, opaque.
+	writeRaw(0x00000000);	// Vertex 1. (YyyyXxxxh)  Y=30. X=25
+	writeRaw(0x00008000);	// Color2.   (00BbGgRrh)  
+	writeRaw(0x0000000F);	// Vertex 2. (YyyyXxxxh)  Y=31. X=40
+	writeRaw(0x00000080);	// Color3.   (00BbGgRrh)  
+	writeRaw(0x000F000F);	// Vertex 3. (YyyyXxxxh)  Y=3. X=1
 	*/
 
 	/*
-	mgr.writeCommand(0x30800000);	// Color1+Command.  Shaded three-point polygon, opaque.
-	mgr.writeCommand(0x00000000);	// Vertex 1. (YyyyXxxxh)  Y=0. X=0
-	mgr.writeCommand(0x00008000);	// Color2.   (00BbGgRrh)  
-	mgr.writeCommand(0x00000040);	// Vertex 2. (YyyyXxxxh)  Y=0. X=64
-	mgr.writeCommand(0x00000080);	// Color3.   (00BbGgRrh)  
-	mgr.writeCommand(0x00400000);	// Vertex 3. (YyyyXxxxh)  Y=64. X=0
-	for (int i=0; i<6; i++) mgr.executeInLoop();
+	writeRaw(0x30800000);	// Color1+Command.  Shaded three-point polygon, opaque.
+	writeRaw(0x00000000);	// Vertex 1. (YyyyXxxxh)  Y=0. X=0
+	writeRaw(0x00008000);	// Color2.   (00BbGgRrh)  
+	writeRaw(0x00000040);	// Vertex 2. (YyyyXxxxh)  Y=0. X=64
+	writeRaw(0x00000080);	// Color3.   (00BbGgRrh)  
+	writeRaw(0x00400000);	// Vertex 3. (YyyyXxxxh)  Y=64. X=0
 	*/
 	
 	/*
-    mgr.writeCommand(0x30FF0000);    // Color1+Command.  Shaded three-point polygon, opaque.
-    mgr.writeCommand(0x00000000);    // Vertex 1. (YyyyXxxxh)  Y=0. X=0
-    mgr.writeCommand(0x0000FF00);    // Color2.   (00BbGgRrh)  
-    mgr.writeCommand(0x0000000F);    // Vertex 2. (YyyyXxxxh)  Y=0. X=64
-    mgr.writeCommand(0x000000FF);    // Color3.   (00BbGgRrh)  
-    mgr.writeCommand(0x000F0000);    // Vertex 3. (YyyyXxxxh)  Y=64. X=64
-	for (int i=0; i<6; i++) mgr.executeInLoop();
+    writeRaw(0x30FF0000);    // Color1+Command.  Shaded three-point polygon, opaque.
+    writeRaw(0x00000000);    // Vertex 1. (YyyyXxxxh)  Y=0. X=0
+    writeRaw(0x0000FF00);    // Color2.   (00BbGgRrh)  
+    writeRaw(0x0000000F);    // Vertex 2. (YyyyXxxxh)  Y=0. X=64
+    writeRaw(0x000000FF);    // Color3.   (00BbGgRrh)  
+    writeRaw(0x000F0000);    // Vertex 3. (YyyyXxxxh)  Y=64. X=64
 	*/
 	
 	/*
-	mgr.writeCommand(0x3000FF00);	// (CcBbGgRrh)  Color1+Command. Shaded three-point poly. 
-	mgr.writeCommand(0x00000000);	// (YyyyXxxxh)  Vertex 1.  Y=0. X=0
-	mgr.writeCommand(0x0000FF00);	// (00BbGgRrh)  Color2.
-	mgr.writeCommand(0x0000007F);	// (YyyyXxxxh)  Vertex 2.  Y=0. X=15
-	mgr.writeCommand(0x0000FF00);	// (00BbGgRrh)  Color3.
-	mgr.writeCommand(0x007F0000);	// (YyyyXxxxh)  Vertex 3.  Y=15. X=15
-	for (int i=0; i<6; i++) mgr.executeInLoop();
+	writeRaw(0x3000FF00);	// (CcBbGgRrh)  Color1+Command. Shaded three-point poly. 
+	writeRaw(0x00000000);	// (YyyyXxxxh)  Vertex 1.  Y=0. X=0
+	writeRaw(0x0000FF00);	// (00BbGgRrh)  Color2.
+	writeRaw(0x0000007F);	// (YyyyXxxxh)  Vertex 2.  Y=0. X=15
+	writeRaw(0x0000FF00);	// (00BbGgRrh)  Color3.
+	writeRaw(0x007F0000);	// (YyyyXxxxh)  Vertex 3.  Y=15. X=15
+	*/
 	
 	// Test poly, for VCD compare...
-    mgr.writeCommand(0x32FF0000);    // Color1+Command.  Shaded three-point polygon, opaque.
-    mgr.writeCommand(0x00000020);    // Vertex 1. (YyyyXxxxh)  Y=0. X=0
-    mgr.writeCommand(0x0000FF00);    // Color2.   (00BbGgRrh)  
-    mgr.writeCommand(0x0000009F);    // Vertex 2. (YyyyXxxxh)  Y=0. X=64
-    mgr.writeCommand(0x000000FF);    // Color3.   (00BbGgRrh)  
-    mgr.writeCommand(0x007F0020);    // Vertex 3. (YyyyXxxxh)  Y=64. X=64
-	for (int i=0; i<6; i++) mgr.executeInLoop();
+	/*
+    writeRaw(0x32FF0000);    // Color1+Command.  Shaded three-point polygon, opaque.
+    writeRaw(0x00000020);    // Vertex 1. (YyyyXxxxh)  Y=0. X=0
+    writeRaw(0x0000FF00);    // Color2.   (00BbGgRrh)  
+    writeRaw(0x0000009F);    // Vertex 2. (YyyyXxxxh)  Y=0. X=64
+    writeRaw(0x000000FF);    // Color3.   (00BbGgRrh)  
+    writeRaw(0x007F0020);    // Vertex 3. (YyyyXxxxh)  Y=64. X=64
 	*/
 
 	/*
-	mgr.writeCommand(0x30000828);	// Color1+Command.  Shaded three-point polygon, opaque.
-	mgr.writeCommand(0x001E0019);	// Vertex 1. (YyyyXxxxh)  Y=30. X=25
-	mgr.writeCommand(0x60000B3A);	// Color2.   (00BbGgRrh)  
-	mgr.writeCommand(0x00280040);	// Vertex 2. (YyyyXxxxh)  Y=40. X=64
-	mgr.writeCommand(0x60000B39);	// Color3.   (00BbGgRrh)  
-	mgr.writeCommand(0x00400032);	// Vertex 3. (YyyyXxxxh)  Y=64. X=50
+	writeRaw(0x30000828);	// Color1+Command.  Shaded three-point polygon, opaque.
+	writeRaw(0x001E0019);	// Vertex 1. (YyyyXxxxh)  Y=30. X=25
+	writeRaw(0x60000B3A);	// Color2.   (00BbGgRrh)  
+	writeRaw(0x00280040);	// Vertex 2. (YyyyXxxxh)  Y=40. X=64
+	writeRaw(0x60000B39);	// Color3.   (00BbGgRrh)  
+	writeRaw(0x00400032);	// Vertex 3. (YyyyXxxxh)  Y=64. X=50
 	*/
 
 	/*
-	mgr.writeCommand(0x300000FF);	// TriangleGouraud.
-	mgr.writeCommand(0x00000000);	// Vertex 1. (YyyyXxxxh)  Y=0. X=0
-	mgr.writeCommand(0x0000FF00);	// Color2.   (00BbGgRrh)  
-	mgr.writeCommand(0x0000000F);	// Vertex 2. (YyyyXxxxh)  Y=0. X=15
-	mgr.writeCommand(0x00FF0000);	// Color3.   (00BbGgRrh)  
-	mgr.writeCommand(0x000F0000);	// Vertex 3. (YyyyXxxxh)  Y=15. X=0
-	for (int i=0; i<6; i++) mgr.executeInLoop();
+	writeRaw(0x300000FF);	// TriangleGouraud.
+	writeRaw(0x00000000);	// Vertex 1. (YyyyXxxxh)  Y=0. X=0
+	writeRaw(0x0000FF00);	// Color2.   (00BbGgRrh)  
+	writeRaw(0x0000000F);	// Vertex 2. (YyyyXxxxh)  Y=0. X=15
+	writeRaw(0x00FF0000);	// Color3.   (00BbGgRrh)  
+	writeRaw(0x000F0000);	// Vertex 3. (YyyyXxxxh)  Y=15. X=0
 	*/
 	
 	/*
-	mgr.writeCommand(0x300000FF);	// TriangleGouraud.
-	mgr.writeCommand(0x00000000);	// Vertex 1. (YyyyXxxxh)  Y=0. X=0
-	mgr.writeCommand(0x0000FF00);	// Color2.   (00BbGgRrh)  
-	mgr.writeCommand(0x00000040);	// Vertex 2. (YyyyXxxxh)  Y=0. X=64
-	mgr.writeCommand(0x00FF0000);	// Color3.   (00BbGgRrh)  
-	mgr.writeCommand(0x00400000);	// Vertex 3. (YyyyXxxxh)  Y=64. X=0
-	for (int i=0; i<6; i++) mgr.executeInLoop();
+	writeRaw(0x300000FF);	// TriangleGouraud.
+	writeRaw(0x00000000);	// Vertex 1. (YyyyXxxxh)  Y=0. X=0
+	writeRaw(0x0000FF00);	// Color2.   (00BbGgRrh)  
+	writeRaw(0x00000040);	// Vertex 2. (YyyyXxxxh)  Y=0. X=64
+	writeRaw(0x00FF0000);	// Color3.   (00BbGgRrh)  
+	writeRaw(0x00400000);	// Vertex 3. (YyyyXxxxh)  Y=64. X=0
 	*/
 	
 	/*
@@ -552,6 +535,7 @@ ADR +12= Read Data bus (cpuDataOut), without any other CPU signal.
 	writeRaw(0x01E00280);
 	*/
 	
+
 	writeRaw(0x01000000);	// Flush texture cache.
 	printf("sizeof sony logo: %d BYTES / %d WORDS\n", sizeof(sony_logo), sizeof(sony_logo)/4 );
 	for (int i=0; i<sizeof(sony_logo)/4; i++) {		// sizeof gives bytes, but logo is in uint32_t.
@@ -647,7 +631,24 @@ ADR +12= Read Data bus (cpuDataOut), without any other CPU signal.
 	writeRaw(0x5EB324A0);
 	writeRaw(0x6B385A92);
 	writeRaw(0x000049EC);
+	
+	writeRaw(0x32FF0000);    // Color1+Command.  Shaded three-point polygon, opaque.
+	writeRaw(0x00000000);    // Vertex 1. (YyyyXxxxh)  Y=0. X=0
+	writeRaw(0x0000FF00);    // Color2.   (00BbGgRrh)  
+	writeRaw(0x0000009F);    // Vertex 2. (YyyyXxxxh)  Y=0. X=64
+	writeRaw(0x000000FF);    // Color3.   (00BbGgRrh)  
+	writeRaw(0x007F0020);    // Vertex 3. (YyyyXxxxh)  Y=64. X=64
+	
+	usleep(5000);
 		
+	writeRaw(0x65000000); // Color+Command. GP0(65h) - Textured Rectangle, variable size, opaque, raw-texture
+	writeRaw(0x003800C8); // Vertex. Upper-left coord of the rectangle.
+	writeRaw(0x780C0000); // Texcoord+Palette
+	writeRaw(0x00400040); // (variable size only) (max 1023x511)
+
+		
+		
+	/*
 	writeRaw(0x2C808080);	// Quad textured, for Sony logo.  Color+Command
 	writeRaw(0x003800C8);	// Vertex1           (YyyyXxxxh)
 	writeRaw(0x780C0000);	// Texcoord1+Palette (ClutYyXxh)
@@ -700,28 +701,15 @@ ADR +12= Read Data bus (cpuDataOut), without any other CPU signal.
 	writeRaw(0x0086014A);	// 
 	writeRaw(0x00008CB2);	// 
 	writeRaw(0x00FA014A);	// 
+	*/
+	
 	
 	usleep(50000);	// 500ms Wait for the rendering to finish! TODO - Do a proper polling check for this.
 	
-	/*
-	for (int i=0; i<256; i+=8) {			
-		reg0 = *((uint32_t *)fb_addr+i+0);	// TESTING!! Skipping every odd 32-bit WORD atm,
-		reg1 = *((uint32_t *)fb_addr+i+2);	// as DDRAM is set up as 64-bit wide on the FPGA side, but we're only writing 32 bits. ElectronAsh.
-		reg2 = *((uint32_t *)fb_addr+i+4);
-		reg3 = *((uint32_t *)fb_addr+i+6);
-		reg4 = *((uint32_t *)fb_addr+i+8);
-		reg5 = *((uint32_t *)fb_addr+i+10);
-		reg6 = *((uint32_t *)fb_addr+i+12);
-		reg7 = *((uint32_t *)fb_addr+i+14);
-		printf("%08X %08X %08X %08X %08X %08X %08X %08X\n", reg0, reg1, reg2, reg3, reg4, reg5, reg6, reg7);
-	}
-	*/
-	printf("\n");
-	
-	uint32_t performance = mgr.getGPUCycle();
-	printf("mydebugCnt: %d\n\n", performance);
 
-	
+	uint32_t performance = mgr.getGPUCycle();
+	printf("\nmydebugCnt: %d\n\n", performance);
+
 	/*
 	uint32_t offset = 0x0;
 	printf("Displaying FB offset: 0x%08X...\n", offset);
