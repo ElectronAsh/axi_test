@@ -63,7 +63,9 @@ ADR +12= Read Data bus (cpuDataOut), without any other CPU signal.
 
 void writeRaw(uint32_t data) {
 	uint32_t* BASE_GPU = (uint32_t *)axi_addr;
-	if (BASE_GPU[2] & 1<<28) BASE_GPU[0] = data;	// Read dbg_canWrite flag before sending data.
+	
+	while ( !(BASE_GPU[2] & 1<<28) );	// Wait for dbg_canWrite flag before sending data.
+	BASE_GPU[0] = data;
 }
 
 class GPUManager {
@@ -645,7 +647,6 @@ ADR +12= Read Data bus (cpuDataOut), without any other CPU signal.
 	writeRaw(0x5EB324A0);
 	writeRaw(0x6B385A92);
 	writeRaw(0x000049EC);
-
 		
 	writeRaw(0x2C808080);	// Quad textured, for Sony logo.  Color+Command
 	writeRaw(0x003800C8);	// Vertex1           (YyyyXxxxh)
@@ -677,8 +678,6 @@ ADR +12= Read Data bus (cpuDataOut), without any other CPU signal.
 	writeRaw(0x01BA01B8);
 	writeRaw(0x00003BEF);
 
-	usleep(5000);	// 5ms Wait.
-
 	writeRaw(0x380000B2);	// Color1+Command.  Quad Gouraud for logo diamond.
 	writeRaw(0x00F000C0);	// Vertex 1. y=240. x=192.
 	writeRaw(0x00008CB2);	// Color2.
@@ -687,17 +686,13 @@ ADR +12= Read Data bus (cpuDataOut), without any other CPU signal.
 	writeRaw(0x01700140);	// Vertex 3. y=368. x=320.
 	writeRaw(0x000000B2);	// Color4.
 	writeRaw(0x00F001C0);	// Vertex 4. y=240. x=448.
-	
-	usleep(5000);	// 50ms Wait.
-	
+
 	writeRaw(0x300000B2);	// Lower orange triangle (Gouraud) on logo.
 	writeRaw(0x01200170);	// 
 	writeRaw(0x00008CB2);	// 
 	writeRaw(0x00E60136);	// 
 	writeRaw(0x00008CB2);	// 
 	writeRaw(0x015A0136);	// 
-
-	usleep(5000);	// 50ms Wait.
 	
 	writeRaw(0x300000B2);	// Upper orange triangle (Gouraud) on logo.
 	writeRaw(0x00C00110);	// 
