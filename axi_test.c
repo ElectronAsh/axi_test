@@ -182,6 +182,8 @@ int mmap_setup() {
 void parser(const char* fileName, u16* psxBuffer, GPUManager& mgr, uint32_t delay) {
 	FILE* binSrc = fopen(fileName,"rb");
 
+	//printf("feof flag: %d\n", feof(binSrc) );
+	
 	// ---------------------------------------------------------------------------------
 	// Method 1 ----- Read file directly into DDR VRAM of the PSX ?
 	// Load dump from VRAM in memory.
@@ -190,7 +192,7 @@ void parser(const char* fileName, u16* psxBuffer, GPUManager& mgr, uint32_t dela
     u16* buff16 = (u16*)psxBuffer;
     for (int y=0; y < 524288; y++) {
         fread(&buff16[y],sizeof(u16),1,binSrc);
-        if ((y & 0x3FF) == 0) { printf("Y:%i\n", y >> 10); }
+        //if ((y & 0x3FF) == 0) { printf("Y:%i\n", y >> 10); }
         //usleep(1);
     }
 	
@@ -207,7 +209,7 @@ void parser(const char* fileName, u16* psxBuffer, GPUManager& mgr, uint32_t dela
 	}
 	*/
 	
-	printf("cmdSetup:");
+	//printf("cmdSetup:");
 
 	// ---------------------------------------------------------------------------------
 	// Method 2 ---- Create a REAL UPLOAD COMMAND
@@ -217,7 +219,7 @@ void parser(const char* fileName, u16* psxBuffer, GPUManager& mgr, uint32_t dela
 	for (int n=0; n < setupCommandCount; n++) {
 		u32 cmdSetup;
 		fread(&cmdSetup, sizeof(u32),1, binSrc);
-		printf("cmdSetup: 0x%08X  ", cmdSetup);
+		//printf("cmdSetup: 0x%08X  ", cmdSetup);
 		writeRaw(cmdSetup);
 		if (delay>0) usleep(delay);
 	}
@@ -230,7 +232,7 @@ void parser(const char* fileName, u16* psxBuffer, GPUManager& mgr, uint32_t dela
 		for (int m=0; m < cmdLength; m++) {
 			u32 operand;
 			fread(&operand, sizeof(u32),1, binSrc);
-			printf("operand: 0x%08X\n", operand);
+			//printf("operand: 0x%08X\n", operand);
 			writeRaw(operand);
 			if (delay>0) usleep(delay);
 		}
@@ -293,8 +295,8 @@ ADR +12= Read Data bus (cpuDataOut), without any other CPU signal.
 
 	// Clear the GPU framebuffer with a known value before starting each test.
 	for (int i=0; i<262144; i++) {
-		//*((uint32_t *)fb_addr+i) = 0x00000000; // Black.
-		*((uint32_t *)fb_addr+i) = 0x42104210; // Grey.
+		*((uint32_t *)fb_addr+i) = 0x00000000; // Black.
+		//*((uint32_t *)fb_addr+i) = 0x42104210; // Grey.
 	}
 	usleep(40000);	// 20ms delay. Just to see the rendering update.
 	
@@ -389,16 +391,18 @@ ADR +12= Read Data bus (cpuDataOut), without any other CPU signal.
 	*/
 
 	// Write to GP0...
+	/*
 	writeRaw(0xE100020A);	// Texpage.
 	writeRaw(0xE2000000);	// Texwindow.
 	writeRaw(0xE3000000);	// DrawAreaX1Y1.
 	writeRaw(0xE4077E7F);	// DrawAreaX2Y2.
 	writeRaw(0xE5000000);	// DrawAreaOffset.
 	writeRaw(0xE6000000);	// MaskBits.
+	*/
 	
-	//parser( "/media/fat/DumpSet2/Megaman Scr3", (u16*)fb_addr, mgr, 0);
-	parser( "/media/fat/DumpSet3/RidgeRacerGame", (u16*)fb_addr, mgr, 1);
+	parser( "/media/fat/DumpSet/FF7Station2_export", (u16*)fb_addr, mgr, 0);
 
+	
 	// Test poly RGB.
 	/*
 	writeRaw(0x30FF0000);	// (CcBbGgRrh)  Color1+Command.  (blue) Shaded three-point poly. 
@@ -708,15 +712,24 @@ ADR +12= Read Data bus (cpuDataOut), without any other CPU signal.
 	*/
 	
 	/*
-	writeRaw(0x32FF0000);    // Color1+Command.  Shaded three-point polygon, semi-transparent.
+	writeRaw(0x32FFFFFF);    // Color1+Command.  Shaded three-point polygon, semi-transparent.
 	//writeRaw(0x30FF0000);    // Color1+Command.  Shaded three-point polygon, opaque.
 	writeRaw(0x00000000);    // Vertex 1. (YyyyXxxxh)
-	writeRaw(0x0000FF00);    // Color2.   (00BbGgRrh)  
-	writeRaw(0x0000009F);    // Vertex 2. (YyyyXxxxh)
-	writeRaw(0x000000FF);    // Color3.   (00BbGgRrh)  
-	writeRaw(0x007F0020);    // Vertex 3. (YyyyXxxxh)
+	writeRaw(0x00FFFFFF);    // Color2.   (00BbGgRrh)  
+	writeRaw(0x00000015);    // Vertex 2. (YyyyXxxxh)
+	writeRaw(0x00FFFFFF);    // Color3.   (00BbGgRrh)  
+	writeRaw(0x00090010);    // Vertex 3. (YyyyXxxxh)
 	*/
-
+	
+	/*
+	writeRaw(0x32FFFFFF);    // Color1+Command.  Shaded three-point polygon, semi-transparent.
+	//writeRaw(0x30FF0000);    // Color1+Command.  Shaded three-point polygon, opaque.
+	writeRaw(0x00000000);    // Vertex 1. (YyyyXxxxh)
+	writeRaw(0x00FFFFFF);    // Color2.   (00BbGgRrh)  
+	writeRaw(0x0000002f);    // Vertex 2. (YyyyXxxxh)
+	writeRaw(0x00FFFFFF);    // Color3.   (00BbGgRrh)  
+	writeRaw(0x002f0008);    // Vertex 3. (YyyyXxxxh)
+	*/
 	
 	/*
 	usleep(5000);
@@ -802,7 +815,7 @@ ADR +12= Read Data bus (cpuDataOut), without any other CPU signal.
 	
 	printf("printing lines 0-31...\n");
 	for (int line=0; line<32; line++) {
-		for (int word=0; word<8; word++) { reg0 = *((uint32_t *)fb_addr+word+(line*512) ); printf("%08X ", reg0); }	// 32-bit word address for fb_addr, 2 pixels per word, so 1024/2.
+		for (int word=0; word<16; word++) { reg0 = *((uint32_t *)fb_addr+word+(line*512) ); printf("%08X ", reg0); }	// 32-bit word address for fb_addr, 2 pixels per word, so 1024/2.
 		printf("\n");
 	}
 	
