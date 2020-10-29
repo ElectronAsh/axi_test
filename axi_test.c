@@ -227,14 +227,36 @@ void parser(const char* fileName, u16* psxBuffer, GPUManager& mgr, uint32_t dela
 	u32 logCommandCount;
 	fread(&logCommandCount, sizeof(u32), 1, binSrc);
 	for (int n=0; n < logCommandCount; n++) {
+		u32 cmdLengthRAW;
 		u32 cmdLength;
-		fread(&cmdLength, sizeof(u32),1, binSrc);
-		for (int m=0; m < cmdLength; m++) {
-			u32 operand;
+		u32 cmdType;
+		fread(&cmdLengthRAW, sizeof(u32),1, binSrc);
+		cmdLength = cmdLengthRAW & 0xFFFFFF;
+		cmdType   = cmdLengthRAW >> 24;
+		
+		u32 operand;
+		if (cmdType == 0) { // GP0
 			fread(&operand, sizeof(u32),1, binSrc);
-			//printf("operand: 0x%08X\n", operand);
-			writeRaw(operand);
-			if (delay>0) usleep(delay);
+
+			if ((operand>>24) != 0xC0) {
+				writeRaw(operand);
+				for (int m=1; m < cmdLength; m++) {
+					fread(&operand, sizeof(u32),1, binSrc);
+
+					//printf("operand: 0x%08X\n", operand);
+					writeRaw(operand);
+					if (delay>0) usleep(delay);
+				}
+			} else {
+				// skip the command...
+				fread(&operand, sizeof(u32),1, binSrc);
+				fread(&operand, sizeof(u32),1, binSrc);
+			}
+		} else {
+			// GP1 to do later... Skip for now...
+			for (int m=0; m < cmdLength; m++) {
+				fread(&operand, sizeof(u32),1, binSrc);
+			}
 		}
 	}
 	
@@ -400,8 +422,62 @@ ADR +12= Read Data bus (cpuDataOut), without any other CPU signal.
 	writeRaw(0xE6000000);	// MaskBits.
 	*/
 	
-	parser( "/media/fat/DumpSet/FF7Station2_export", (u16*)fb_addr, mgr, 0);
-
+	//parser( "/media/fat/DumpSet/RRFlag.gpudrawlist", (u16*)fb_addr, mgr, 0);
+	//parser( "/media/fat/DumpSet/RROpening.gpudrawlist", (u16*)fb_addr, mgr, 0);
+	//parser( "/media/fat/DumpSet/RRChase.gpudrawlist", (u16*)fb_addr, mgr, 0);
+	//parser( "/media/fat/DumpSet/RRChase2.gpudrawlist", (u16*)fb_addr, mgr, 0);
+	//parser( "/media/fat/DumpSet/RRChase3.gpudrawlist", (u16*)fb_addr, mgr, 0);
+	
+	parser( "/media/fat/DumpSet/FF7_2.gpudrawlist", (u16*)fb_addr, mgr, 0);
+	parser( "/media/fat/DumpSet/FF7_3.gpudrawlist", (u16*)fb_addr, mgr, 0);
+	
+	
+	/*
+	parser( "/media/fat/DumpSet/BootMenu", (u16*)fb_addr, mgr, 0);
+	sleep(3); mgr.StartGPUReset(); mgr.EndGPUReset();
+	parser( "/media/fat/DumpSet/FF7Fight", (u16*)fb_addr, mgr, 0);
+	sleep(3); mgr.StartGPUReset(); mgr.EndGPUReset();
+	parser( "/media/fat/DumpSet/FF7Station", (u16*)fb_addr, mgr, 0);
+	sleep(3); mgr.StartGPUReset(); mgr.EndGPUReset();
+	parser( "/media/fat/DumpSet/FF7Station2", (u16*)fb_addr, mgr, 0);
+	sleep(3); mgr.StartGPUReset(); mgr.EndGPUReset();
+	//parser( "/media/fat/DumpSet/FF7Station2_export", (u16*)fb_addr, mgr, 0);
+	//sleep(3); mgr.StartGPUReset(); mgr.EndGPUReset();
+	parser( "/media/fat/DumpSet/JumpingFlashMenu", (u16*)fb_addr, mgr, 0);
+	sleep(3); mgr.StartGPUReset(); mgr.EndGPUReset();
+	//parser( "/media/fat/DumpSet/Lines", (u16*)fb_addr, mgr, 0);
+	//sleep(3); mgr.StartGPUReset(); mgr.EndGPUReset();
+	parser( "/media/fat/DumpSet/LoaderRidge", (u16*)fb_addr, mgr, 0);
+	sleep(3); mgr.StartGPUReset(); mgr.EndGPUReset();
+	parser( "/media/fat/DumpSet/Megaman Scr3", (u16*)fb_addr, mgr, 0);
+	sleep(3); mgr.StartGPUReset(); mgr.EndGPUReset();
+	parser( "/media/fat/DumpSet/Megaman1", (u16*)fb_addr, mgr, 0);
+	sleep(3); mgr.StartGPUReset(); mgr.EndGPUReset();
+	parser( "/media/fat/DumpSet/Megaman_Menu", (u16*)fb_addr, mgr, 0);
+	sleep(3); mgr.StartGPUReset(); mgr.EndGPUReset();
+	parser( "/media/fat/DumpSet/MegamanInGame", (u16*)fb_addr, mgr, 0);
+	sleep(3); mgr.StartGPUReset(); mgr.EndGPUReset();
+	//parser( "/media/fat/DumpSet/MenuFF7", (u16*)fb_addr, mgr, 0);
+	//sleep(3); mgr.StartGPUReset(); mgr.EndGPUReset();
+	//parser( "/media/fat/DumpSet/MenuPolygon", (u16*)fb_addr, mgr, 0);
+	//sleep(3); mgr.StartGPUReset(); mgr.EndGPUReset();
+	parser( "/media/fat/DumpSet/RidgeRacerGame", (u16*)fb_addr, mgr, 0);
+	sleep(3); mgr.StartGPUReset(); mgr.EndGPUReset();
+	parser( "/media/fat/DumpSet/RidgeRacerMenu", (u16*)fb_addr, mgr, 0);
+	sleep(3); mgr.StartGPUReset(); mgr.EndGPUReset();
+	parser( "/media/fat/DumpSet/RidgeScore", (u16*)fb_addr, mgr, 0);
+	sleep(3); mgr.StartGPUReset(); mgr.EndGPUReset();
+	parser( "/media/fat/DumpSet/StarOceanMenu", (u16*)fb_addr, mgr, 0);
+	sleep(3); mgr.StartGPUReset(); mgr.EndGPUReset();
+	parser( "/media/fat/DumpSet/TestLines", (u16*)fb_addr, mgr, 0);
+	sleep(3); mgr.StartGPUReset(); mgr.EndGPUReset();
+	parser( "/media/fat/DumpSet/TexOverflow", (u16*)fb_addr, mgr, 0);
+	sleep(3); mgr.StartGPUReset(); mgr.EndGPUReset();
+	parser( "/media/fat/DumpSet/TexTrueColorStarOcean", (u16*)fb_addr, mgr, 0);
+	sleep(3); mgr.StartGPUReset(); mgr.EndGPUReset();
+	parser( "/media/fat/DumpSet/Transparency", (u16*)fb_addr, mgr, 0);
+	sleep(3);
+	*/
 	
 	// Test poly RGB.
 	/*
