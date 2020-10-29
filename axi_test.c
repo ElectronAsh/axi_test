@@ -70,6 +70,7 @@ void writeRaw(uint32_t data) {
 	BASE_GPU[0] = data;
 }
 
+
 typedef unsigned short u16;
 typedef unsigned int   u32;
 
@@ -179,6 +180,55 @@ int mmap_setup() {
 	return 0;
 }
 
+
+void waitVblank() {
+	volatile uint32_t* BASE_GPU = (uint32_t *)axi_addr;
+	
+	//printf("BASE_GPU[2]: 0x%08X\n", BASE_GPU[2]);
+	while ( !(BASE_GPU[2] & (1<<31) ) ); 	// Wait for Vblank High.
+	while (  (BASE_GPU[2] & (1<<31) ) ); 	// Wait for it to go Low again.
+	
+	//bool vblank = BASE_GPU[2] & (1<<31);
+	//printf("vblank: %d\n", vblank);
+}
+
+void setFBfull() {
+	uint32_t* BASE_GPU = (uint32_t *)axi_addr;
+	BASE_GPU[4] = 1024;			// my_fb_hsize
+	BASE_GPU[5] = 512;			// my_fb_vsize
+	BASE_GPU[6] = 0b001100;		// my_fb_format
+	BASE_GPU[7] = 0x10000000;	// my_fb_base
+	BASE_GPU[8] = 0;			// my_fb_stride
+}
+
+void setFBtop320() {
+	uint32_t* BASE_GPU = (uint32_t *)axi_addr;
+	BASE_GPU[4] = 320;			// my_fb_hsize
+	BASE_GPU[5] = 240;			// my_fb_vsize
+	BASE_GPU[6] = 0b001100;		// my_fb_format
+	BASE_GPU[7] = 0x10000000;	// my_fb_base
+	BASE_GPU[8] = 2048;			// my_fb_stride
+}
+
+void setFBbot320() {
+	uint32_t* BASE_GPU = (uint32_t *)axi_addr;
+	BASE_GPU[4] = 320;			// my_fb_hsize
+	BASE_GPU[5] = 240;			// my_fb_vsize
+	BASE_GPU[6] = 0b001100;		// my_fb_format
+	BASE_GPU[7] = 0x10078000;	// my_fb_base
+	BASE_GPU[8] = 2048;			// my_fb_stride
+}
+
+void setFB640() {
+	uint32_t* BASE_GPU = (uint32_t *)axi_addr;
+	BASE_GPU[4] = 640;			// my_fb_hsize
+	BASE_GPU[5] = 480;			// my_fb_vsize
+	BASE_GPU[6] = 0b001100;		// my_fb_format
+	BASE_GPU[7] = 0x10000000;	// my_fb_base
+	BASE_GPU[8] = 0;			// my_fb_stride
+}
+
+
 void parser(const char* fileName, u16* psxBuffer, GPUManager& mgr, uint32_t delay) {
 	FILE* binSrc = fopen(fileName,"rb");
 
@@ -242,13 +292,13 @@ void parser(const char* fileName, u16* psxBuffer, GPUManager& mgr, uint32_t dela
 				writeRaw(operand);
 				for (int m=1; m < cmdLength; m++) {
 					fread(&operand, sizeof(u32),1, binSrc);
-
+			
 					//printf("operand: 0x%08X\n", operand);
 					writeRaw(operand);
 					if (delay>0) usleep(delay);
 				}
 			} else {
-				// skip the command...
+				// skip the 0xC0 command...
 				fread(&operand, sizeof(u32),1, binSrc);
 				fread(&operand, sizeof(u32),1, binSrc);
 			}
@@ -256,12 +306,24 @@ void parser(const char* fileName, u16* psxBuffer, GPUManager& mgr, uint32_t dela
 			// GP1 to do later... Skip for now...
 			for (int m=0; m < cmdLength; m++) {
 				fread(&operand, sizeof(u32),1, binSrc);
+				//printf("GP1 operand: 0x%08X\n", operand);
+				
+				if (operand==0x05000000) {
+					waitVblank();
+					setFBbot320();
+				}
+				
+				if (operand==0x0503C000) {
+					waitVblank();
+					setFBtop320();
+				}
 			}
 		}
 	}
 	
 	fclose(binSrc);
 }
+
 
 int main()
 {
@@ -271,6 +333,19 @@ int main()
 
 	GPUManager mgr( ((uint32_t *)axi_addr) );
 
+	//setFBfull();
+	//setFBtop320();
+	//setFBbot320();
+
+	/*
+	while (1) {
+		waitVblank();
+		setFBtop320();
+		waitVblank();
+		setFBbot320();
+	}
+	*/
+		
 	/*
 	char mybyte0;
 	char mybyte1;
@@ -424,12 +499,13 @@ ADR +12= Read Data bus (cpuDataOut), without any other CPU signal.
 	
 	//parser( "/media/fat/DumpSet/RRFlag.gpudrawlist", (u16*)fb_addr, mgr, 0);
 	//parser( "/media/fat/DumpSet/RROpening.gpudrawlist", (u16*)fb_addr, mgr, 0);
-	//parser( "/media/fat/DumpSet/RRChase.gpudrawlist", (u16*)fb_addr, mgr, 0);
-	//parser( "/media/fat/DumpSet/RRChase2.gpudrawlist", (u16*)fb_addr, mgr, 0);
-	//parser( "/media/fat/DumpSet/RRChase3.gpudrawlist", (u16*)fb_addr, mgr, 0);
 	
-	parser( "/media/fat/DumpSet/FF7_2.gpudrawlist", (u16*)fb_addr, mgr, 0);
-	parser( "/media/fat/DumpSet/FF7_3.gpudrawlist", (u16*)fb_addr, mgr, 0);
+	parser( "/media/fat/DumpSet/RRChase.gpudrawlist", (u16*)fb_addr, mgr, 0);
+	parser( "/media/fat/DumpSet/RRChase2.gpudrawlist", (u16*)fb_addr, mgr, 0);
+	parser( "/media/fat/DumpSet/RRChase3.gpudrawlist", (u16*)fb_addr, mgr, 0);
+	
+	//parser( "/media/fat/DumpSet/FF7_2.gpudrawlist", (u16*)fb_addr, mgr, 0);
+	//parser( "/media/fat/DumpSet/FF7_3.gpudrawlist", (u16*)fb_addr, mgr, 0);
 	
 	
 	/*
