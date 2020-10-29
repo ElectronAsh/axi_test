@@ -180,16 +180,18 @@ int mmap_setup() {
 	return 0;
 }
 
+void waitVblankStart() {
+    volatile uint32_t* BASE_GPU = (uint32_t *)axi_addr;
+    while ( (BASE_GPU[2] & (1<<31) ) );     // Wait for Vblank High !
+}
 
-void waitVblank() {
-	volatile uint32_t* BASE_GPU = (uint32_t *)axi_addr;
-	
-	//printf("BASE_GPU[2]: 0x%08X\n", BASE_GPU[2]);
-	while ( !(BASE_GPU[2] & (1<<31) ) ); 	// Wait for Vblank High.
-	while (  (BASE_GPU[2] & (1<<31) ) ); 	// Wait for it to go Low again.
-	
-	//bool vblank = BASE_GPU[2] & (1<<31);
-	//printf("vblank: %d\n", vblank);
+void waitVblankEnd() {
+    volatile uint32_t* BASE_GPU = (uint32_t *)axi_addr;
+    while ( !(BASE_GPU[2] & (1<<31) ) );     // Wait for Vblank Low !
+}
+
+void waitVblankFull(int countfull) {    
+     for (int count= 1; count < countfull; count++) { waitVblankEnd(); waitVblankStart(); }
 }
 
 void setFBfull() {
@@ -309,13 +311,17 @@ void parser(const char* fileName, u16* psxBuffer, GPUManager& mgr, uint32_t dela
 				//printf("GP1 operand: 0x%08X\n", operand);
 				
 				if (operand==0x05000000) {
-					waitVblank();
+					waitVblankFull(5);
 					setFBbot320();
+					//waitVblankEnd();		// Wait end of VBL (loop as long as 1)
+					//waitVblankStart();		// Start of VBL (loop as long as 0)
 				}
 				
 				if (operand==0x0503C000) {
-					waitVblank();
+					waitVblankFull(5);
 					setFBtop320();
+					//waitVblankEnd();		// Wait end of VBL (loop as long as 1)
+					//waitVblankStart();		// Start of VBL
 				}
 			}
 		}
@@ -498,7 +504,7 @@ ADR +12= Read Data bus (cpuDataOut), without any other CPU signal.
 	*/
 	
 	//parser( "/media/fat/DumpSet/RRFlag.gpudrawlist", (u16*)fb_addr, mgr, 0);
-	//parser( "/media/fat/DumpSet/RROpening.gpudrawlist", (u16*)fb_addr, mgr, 0);
+	//parser( "/media/fat/DumpSet/RROpening.gpudrawlist", (u16*)fb_addr, mgr, 0);	// Crashes !!
 	
 	parser( "/media/fat/DumpSet/RRChase.gpudrawlist", (u16*)fb_addr, mgr, 0);
 	parser( "/media/fat/DumpSet/RRChase2.gpudrawlist", (u16*)fb_addr, mgr, 0);
